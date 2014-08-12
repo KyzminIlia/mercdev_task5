@@ -6,5 +6,7 @@
     <string name="time">Time:</string>
     <string name="description">Description:</string>
     <string name="save">Save</string>
+    <string name="saved">Сохранено</string>
+    <string name="empty_data_time_title_error">"Ошибка: Имя, дата или время не введены"</string>
 
 </resources>
