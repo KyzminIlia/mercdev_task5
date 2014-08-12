@@ -28,7 +28,7 @@ public class TimePickerFragment extends DialogFragment implements
 		calendar.set(Calendar.HOUR_OF_DAY, arg1);
 		calendar.set(Calendar.MINUTE, arg2);
 		Intent timeIntent = new Intent(ACTION_SET_TIME);
-		long time = calendar.getTimeInMillis() - System.currentTimeMillis();
+		long time = calendar.getTimeInMillis()- System.currentTimeMillis();
 		timeIntent.addCategory(CATEGORY_TIME_SET);
 		timeIntent.putExtra(EXTRA_TIME, arg1 + ":" + arg2);
 		timeIntent.putExtra(EXTRA_TIME_MILLS, time);

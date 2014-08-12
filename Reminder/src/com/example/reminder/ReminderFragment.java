@@ -1,14 +1,19 @@
 package com.example.reminder;
 
+import com.example.reminder.AlarmService.LocalBinder;
+
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.LocalBroadcastManager;
@@ -31,7 +36,10 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 	public static final String PREFS_TIME_IN_MILLS = "com.example.reminder.TIME_IN_MILLS";
 	public static final String EXTRA_TITLE = "com.example.reminder.TITLE";
 	public static final String EXTRA_DESCRIPTION = "com.example.reminder.DESCRIPTION";
+	public static final String PREFS_CURRENT_TIME_MILLS = "com.example.reminder.SCURRENT_TIME_MILLS";
+	public static final String PREFS_CURRENT_DATE_MILLS = "com.example.reminder.SCURRENT_DATE_MILLS";
 	public static final String ACTION_ALARM_RECEIVE = "com.example.reminder.ALARM_RECEIVE";
+	public static final String PREFS_IS_ALARM_SET = "com.example.reminder.IS_ALARM_SET";
 
 	private EditText timeEdit;
 	private EditText dateEdit;
@@ -44,6 +52,44 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 	private long reminderTimeMills = 0;
 	private long currentTimeMills = 0;
 	private long currentDataMills = 0;
+	AlarmService mService;
+	private boolean isConnected = false;
+	private boolean isAlarmSet = false;
+
+	private ServiceConnection connection = new ServiceConnection() {
+
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			// TODO Auto-generated method stub
+			isConnected = false;
+
+		}
+
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			isConnected = true;
+			LocalBinder binder = (LocalBinder) service;
+			mService = binder.getService();
+		}
+	};
+
+	@Override
+	public void onStart() {
+		Intent intent = new Intent(getActivity().getApplicationContext(),
+				AlarmService.class);
+		getActivity().getApplicationContext().bindService(intent, connection,
+				getActivity().BIND_AUTO_CREATE);
+		super.onStart();
+	}
+
+	@Override
+	public void onStop() {
+		if (isConnected) {
+			getActivity().getApplicationContext().unbindService(connection);
+			isConnected = false;
+		}
+		super.onStop();
+	}
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -73,7 +119,14 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 		setDataIntent.addAction(TimePickerFragment.ACTION_SET_TIME);
 		LocalBroadcastManager.getInstance(getActivity()).registerReceiver(
 				setBroadcastReceiver, setDataIntent);
+		setRetainInstance(true);
 		super.onCreate(savedInstanceState);
+	}
+
+	@Override
+	public void onResume() {
+		WakeLocker.release();
+		super.onResume();
 	}
 
 	@Override
@@ -100,7 +153,17 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 		sharedPreferences = getActivity().getSharedPreferences(
 				PREFS_TIME_IN_MILLS, 0);
 		reminderTimeMills = sharedPreferences.getLong(PREFS_TIME_IN_MILLS, 0);
-		Log.d(FRAGMENT_TAG, "share time in mills = " + reminderTimeMills);
+		sharedPreferences = getActivity().getSharedPreferences(
+				PREFS_CURRENT_DATE_MILLS, 0);
+		currentDataMills = sharedPreferences.getLong(PREFS_CURRENT_DATE_MILLS,
+				0);
+		sharedPreferences = getActivity().getSharedPreferences(
+				PREFS_CURRENT_TIME_MILLS, 0);
+		currentTimeMills = sharedPreferences.getLong(PREFS_CURRENT_TIME_MILLS,
+				0);
+
+		Log.d(FRAGMENT_TAG, "share time in mills = " + reminderTimeMills
+				+ " time:" + currentTimeMills + "/" + currentDataMills);
 		super.onViewCreated(view, savedInstanceState);
 	}
 
@@ -132,16 +195,32 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 						"Ошибка: Имя, дата или время не введены",
 						Toast.LENGTH_SHORT).show();
 			} else {
-				reminderTimeMills = currentDataMills + currentTimeMills;
+				isAlarmSet = true;
 				SharedPreferences sharedPreferences = getActivity()
-						.getSharedPreferences(PREFS_DATE, 0);
+						.getSharedPreferences(PREFS_IS_ALARM_SET, 0);
 				Editor editor = sharedPreferences.edit();
+				editor.putBoolean(PREFS_IS_ALARM_SET, isAlarmSet);
+				editor.commit();
+				reminderTimeMills = currentDataMills + currentTimeMills;
+				sharedPreferences = getActivity().getSharedPreferences(
+						PREFS_DATE, 0);
+				editor = sharedPreferences.edit();
 				editor.putString(PREFS_DATE, dateEdit.getText().toString());
 				editor.commit();
 				sharedPreferences = getActivity().getSharedPreferences(
 						PREFS_TIME, 0);
 				editor = sharedPreferences.edit();
 				editor.putString(PREFS_TIME, timeEdit.getText().toString());
+				editor.commit();
+				sharedPreferences = getActivity().getSharedPreferences(
+						PREFS_CURRENT_DATE_MILLS, 0);
+				editor = sharedPreferences.edit();
+				editor.putLong(PREFS_CURRENT_DATE_MILLS, currentDataMills);
+				editor.commit();
+				sharedPreferences = getActivity().getSharedPreferences(
+						PREFS_CURRENT_TIME_MILLS, 0);
+				editor = sharedPreferences.edit();
+				editor.putLong(PREFS_CURRENT_TIME_MILLS, currentTimeMills);
 				editor.commit();
 				sharedPreferences = getActivity().getSharedPreferences(
 						PREFS_TITLE, 0);
@@ -172,10 +251,7 @@ public class ReminderFragment extends Fragment implements OnClickListener {
 				alarmIntent.putExtra(PREFS_TIME_IN_MILLS, reminderTimeMills);
 				pendingIntent = PendingIntent.getBroadcast(getActivity(), 0,
 						alarmIntent, 0);
-				AlarmManager alarmManager = (AlarmManager) getActivity()
-						.getSystemService(Context.ALARM_SERVICE);
-				alarmManager.set(AlarmManager.RTC_WAKEUP, reminderTimeMills,
-						pendingIntent);
+				mService.setAlarm(pendingIntent, reminderTimeMills);
 				Log.d(FRAGMENT_TAG, "" + currentDataMills + "+"
 						+ currentTimeMills + "=" + reminderTimeMills);
 

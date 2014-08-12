@@ -27,7 +27,7 @@ public class DatePickerFragment extends DialogFragment implements
 		calendar.set(Calendar.YEAR, arg1);
 		calendar.set(Calendar.MONTH, arg2);
 		calendar.set(Calendar.DAY_OF_MONTH, arg3);
-		long date = calendar.getTimeInMillis() - System.currentTimeMillis();
+		long date = calendar.getTimeInMillis()- System.currentTimeMillis();
 		Intent dataIntent = new Intent(ACTION_SET_DATA);
 		dataIntent.addCategory(CATEGORY_DATA_SET);
 		dataIntent.putExtra(EXTRA_DATA, arg3 + "." + arg2 + "." + arg1);

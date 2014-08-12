@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -37,6 +38,7 @@ public class AlarmBroadcastReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context arg0, Intent arg1) {
 		Log.d(RECEIVER_TAG, "receive alarm");
+		WakeLocker.acquire(arg0);
 		notificationTitle = arg1.getStringExtra(ReminderFragment.EXTRA_TITLE);
 		notificationText = arg1
 				.getStringExtra(ReminderFragment.EXTRA_DESCRIPTION);
@@ -44,6 +46,7 @@ public class AlarmBroadcastReceiver extends BroadcastReceiver {
 				arg0).setContentTitle(notificationTitle)
 				.setContentText(notificationText)
 				.setSmallIcon(R.drawable.ic_launcher);
+		notifyBuilder.setAutoCancel(true);
 		NotificationManager notifyManager = (NotificationManager) arg0
 				.getSystemService(Context.NOTIFICATION_SERVICE);
 		Intent intent = new Intent(arg0, ReminderActivity.class);
@@ -51,6 +54,11 @@ public class AlarmBroadcastReceiver extends BroadcastReceiver {
 				intent, 0);
 		notifyBuilder.setContentIntent(pendingIntent);
 		notifyManager.notify(1764, notifyBuilder.build());
+		SharedPreferences sharedPreferences = arg0.getSharedPreferences(
+				ReminderFragment.PREFS_IS_ALARM_SET, 0);
+		Editor editor = sharedPreferences.edit();
+		editor.putBoolean(ReminderFragment.PREFS_IS_ALARM_SET, false);
+		editor.commit();
 
 	}
 }
